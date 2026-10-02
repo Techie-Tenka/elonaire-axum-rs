@@ -86,8 +86,6 @@ impl Mutation {
             .build());
         }
 
-        tracing::debug!("professional_details: {:?}", professional_details);
-
         let mut database_transaction = db
             .query(
                 "
@@ -224,8 +222,6 @@ impl Mutation {
                 ExtendedError::new("Server Error", StatusCode::INTERNAL_SERVER_ERROR.as_str())
                     .build()
             })?;
-
-        tracing::debug!("portfolio_item: {:?}", portfolio_item);
 
         let headers = ctx.data::<HeaderMap>().map_err(|e| {
             tracing::error!("Error HeaderMap: {:?}", e);
@@ -1020,12 +1016,12 @@ impl Mutation {
         .query(
             "
             BEGIN TRANSACTION;
-            LET $user = (SELECT VALUE id FROM ONLY type::table($user_table) WHERE user_id = $user_id LIMIT 1);
+            LET $user = (SELECT VALUE id FROM ONLY user_id WHERE user_id = $user_id LIMIT 1);
             LET $blog_post = type::record('blog_post', $blog_post_id);
 
             LET $existing_reaction = (SELECT VALUE id FROM ONLY reaction WHERE ->(blog_post WHERE id = $blog_post) AND <-(user_id WHERE id = $user) LIMIT 1);
             LET $reaction = IF $existing_reaction != NONE
-           	{ (UPDATE $existing_reaction MERGE $reaction_input)[0] }
+           	{ (UPDATE ONLY $existing_reaction SET reaction_type = $reaction_input.reaction_type RETURN AFTER) }
                         ELSE
            	{ (RELATE $user -> reaction -> $blog_post CONTENT $reaction_input RETURN AFTER)[0] }
             ;
@@ -1035,8 +1031,6 @@ impl Mutation {
         )
         .bind(("reaction_input", reaction))
         .bind(("user_id", authenticated_ref.sub.to_owned()))
-        .bind(("user_table", "user_id"))
-        .bind(("blog_table", "blog_post"))
         .bind(("blog_post_id", blog_post_id))
         .await
         .map_err(|e| {
@@ -1468,15 +1462,22 @@ impl Mutation {
             .query(
                 "
                 BEGIN TRANSACTION;
-                LET $created_service_request = CREATE service_request CONTENT $service_request_input;
-                LET $created_service_request_id = (SELECT VALUE id FROM ONLY $created_service_request LIMIT 1);
+                    LET $created_service_request = (
+                        CREATE ONLY service_request CONTENT $service_request_input RETURN AFTER
+                    );
+                    LET $created_service_request_id = (
+                        SELECT VALUE id
+                        FROM ONLY $created_service_request
+                        LIMIT 1
+                    );
 
-                FOR $service IN $service_request_input_metadata.service_ids {
-                    LET $service_record = type::record('service', $service);
-                   	RELATE $created_service_request_id -> contains -> $service_record;
-                };
-                RETURN (SELECT * FROM ONLY $created_service_request_id FETCH supporting_docs, pandascrow_escrow_id);
+                    FOR $service IN $service_request_input_metadata.service_ids {
+                        LET $service_record = type::record('service', $service);
+                        RELATE $created_service_request_id -> contains -> $service_record;
+                    };
+                    RETURN $created_service_request_id;
                 COMMIT TRANSACTION;
+
             ",
             )
             .bind(("service_request_input", service_request_input))
@@ -1491,7 +1492,28 @@ impl Mutation {
                 ExtendedError::new("Failed", StatusCode::BAD_REQUEST.as_str()).build()
             })?;
 
-        let response: Option<ServiceRequest> = database_transaction.take(4).map_err(|e| {
+        let created_service_request_id: Option<RecordId> =
+            database_transaction.take(4).map_err(|e| {
+                tracing::error!("Deserialization Error: {:?}", e);
+
+                ExtendedError::new("Failed", StatusCode::BAD_REQUEST.as_str()).build()
+            })?;
+
+        let mut database_transaction = db
+            .query(
+                "
+                (SELECT * FROM ONLY $created_service_request_id LIMIT 1 FETCH supporting_docs)
+            ",
+            )
+            .bind(("created_service_request_id", created_service_request_id))
+            .await
+            .map_err(|e| {
+                tracing::error!("DB Query Error: {}", e);
+
+                ExtendedError::new("Failed", StatusCode::BAD_REQUEST.as_str()).build()
+            })?;
+
+        let response: Option<ServiceRequest> = database_transaction.take(0).map_err(|e| {
             tracing::error!("Deserialization Error: {:?}", e);
 
             ExtendedError::new("Failed", StatusCode::BAD_REQUEST.as_str()).build()
