@@ -1016,12 +1016,12 @@ impl Mutation {
         .query(
             "
             BEGIN TRANSACTION;
-            LET $user = (SELECT VALUE id FROM ONLY type::table($user_table) WHERE user_id = $user_id LIMIT 1);
+            LET $user = (SELECT VALUE id FROM ONLY user_id WHERE user_id = $user_id LIMIT 1);
             LET $blog_post = type::record('blog_post', $blog_post_id);
 
             LET $existing_reaction = (SELECT VALUE id FROM ONLY reaction WHERE ->(blog_post WHERE id = $blog_post) AND <-(user_id WHERE id = $user) LIMIT 1);
             LET $reaction = IF $existing_reaction != NONE
-           	{ (UPDATE $existing_reaction MERGE $reaction_input)[0] }
+           	{ (UPDATE ONLY $existing_reaction SET reaction_type = $reaction_input.reaction_type RETURN AFTER) }
                         ELSE
            	{ (RELATE $user -> reaction -> $blog_post CONTENT $reaction_input RETURN AFTER)[0] }
             ;
@@ -1031,8 +1031,6 @@ impl Mutation {
         )
         .bind(("reaction_input", reaction))
         .bind(("user_id", authenticated_ref.sub.to_owned()))
-        .bind(("user_table", "user_id"))
-        .bind(("blog_table", "blog_post"))
         .bind(("blog_post_id", blog_post_id))
         .await
         .map_err(|e| {
