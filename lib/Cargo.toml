@@ -10,6 +10,7 @@ serde = { workspace = true }
 axum = { workspace = true }
 surrealdb = { workspace = true }
 tonic = { workspace = true }
+tonic-prost = { workspace = true }
 prost = { workspace = true }
 tracing = { workspace = true }
 async-trait = { workspace = true }
@@ -19,4 +20,4 @@ tokio = { workspace = true }
 anyhow = { workspace = true }
 
 [build-dependencies]
-tonic-build = { workspace = true }
+tonic-prost-build = { workspace = true }

@@ -3,7 +3,7 @@ use std::time::Instant;
 
 use axum::http::HeaderValue;
 use hyper::header::{AUTHORIZATION, COOKIE, SET_COOKIE};
-use tonic::body::BoxBody;
+use tonic::body::Body;
 use tonic::codegen::http::{Request, Response};
 use tonic::transport::Channel;
 use tonic::Status;
@@ -26,9 +26,9 @@ where
 {
     async fn call(
         &self,
-        mut req: Request<BoxBody>,
+        mut req: Request<Body>,
         mut service: S,
-    ) -> Result<Response<BoxBody>, S::Error> {
+    ) -> Result<Response<Body>, S::Error> {
         let start_time = Instant::now();
         // Call the service. You can also intercept request from middleware.
         let auth_header = req.headers().get(AUTHORIZATION);
