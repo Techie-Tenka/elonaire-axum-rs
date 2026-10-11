@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1](https://github.com/Techie-Tenka/elonaire-axum-rs/compare/v0.1.0...v0.1.1) - 2026-10-11
+
+### Other
+
+- Rollout tweaks ([#268](https://github.com/Techie-Tenka/elonaire-axum-rs/pull/268))
+- Rollout tweaks ([#266](https://github.com/Techie-Tenka/elonaire-axum-rs/pull/266))
+- Rollout tweaks ([#264](https://github.com/Techie-Tenka/elonaire-axum-rs/pull/264))
+- Rollout tweaks ([#262](https://github.com/Techie-Tenka/elonaire-axum-rs/pull/262))
+
 ## [0.1.0](https://github.com/Techie-Tenka/elonaire-axum-rs/releases/tag/v0.1.0) - 2026-10-11
 
 ### Added
